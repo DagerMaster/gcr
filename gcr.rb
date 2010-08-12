@@ -33,8 +33,6 @@ class Repo
   # URL only stores username/repo_name, not http://github.com/
   property :url, String, :key => true, :unique => true
 
-  has n, :commits
-
   has n, :collaborators
   has n, :users, :through => :collaborators
 end
