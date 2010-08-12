@@ -1,0 +1,7 @@
+sinatra
+dm-core
+dm-migrations
+dm-validations
+patron
+json
+erb
