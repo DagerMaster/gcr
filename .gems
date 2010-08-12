@@ -4,3 +4,4 @@ dm-migrations
 dm-validations
 patron
 json
+dm-postgres-adapter
