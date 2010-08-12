@@ -49,26 +49,20 @@ class Collaborator
 
 end
 
-class Commit
+class Push
   include DataMapper::Resource
 
-  property :id,          Serial
-  property :commit_hash, String
-  property :message,     String
-  property :author_name, String
-  property :author_email,String
-  property :timestamp,   DateTime
-  property :url,         String
+  property :id, Serial
+  property :before, String
+  property :after, String
 
   belongs_to :repo
-
-  has n, :reviews
 end
 
 class Review
   include DataMapper::Resource
 
-  belongs_to :commit, :key => true
+  belongs_to :push, :key => true
   belongs_to :user, :key => true
 
   property :url, String
@@ -158,31 +152,24 @@ get '/logout/?' do
 end
 
 post '/post/?' do
-  push = JSON params[:payload]
-  repo = Repo.get(push["repository"]["url"].split("http://github.com/")[1])
-  if repo
-    collaborators = Collaborator.all(:repo => repo)
-    start = push["before"]
-    push["commits"].each do |commit|
-      c = Commit.new(:commit_hash => commit["id"],
-                     :message => commit["message"],
-                     :author_name => commit["author"]["name"],
-                     :author_email => commit["author"]["email"],
-                     :timestamp => nil,
-                     :url => commit["url"])
-      c.save
-      reviewers = collaborators.sort_by{ rand }.slice(0...5)
-      reviewers.each do |r|
-        rev = Review.new(:commit => c,
-                         :url => repo.url + "compare/" + start + "..." + commit["id"],
-                         :user => r)
-        rev.save
-      end
-      start = commit["id"]
+  payload = JSON params[:payload]
+  repo = Repo.get(payload["repository"]["url"].split(/https?:\/\/github\.com\//)[1])
+  push = Push.new(:repo => repo,
+                  :before => payload["before"],
+                  :after => payload["after"])
+  push.save
+  if repo && push
+    # TODO: don't add pusher as reviewer
+    reviewers = Collaborator.all(:repo => repo).sort_by{ rand }.slice(0...5)
+    reviewers.each do |r|
+      rev = Review.new(:push => push,
+                       :user => r,
+                       :url => payload["compare"])
+      rev.save
     end
   end
 end
-  
+
 get '/reviews/?' do
   if not session[:username]
     redirect "/"
