@@ -2,13 +2,31 @@
    margin: 0;
    padding: 0;
    font-size: 14px;
-   font-family: Helvetica, Arial, sans-serif;
+   font-family: Helvetica, Arial, freesanse, clean, sans-serif;;
    color: #222222;
 }
 h1 {
    font-family: Georgia, Times, serif;
    font-size: 5em;
    margin: .5em;
+}
+a {
+   color: #4183c4;
+   text-decoration: none;
+   font-weight:bold;
+}
+a:hover {
+   text-decoration: underline;
+   cursor:pointer;
+}
+button {
+   padding: 9px 10px 6px 7px;
+   background-color: #f2f2f2;
+   border-color: #eeeeee #dedede #dedede #eeeeee;
+   border-style: solid;
+   border-width: 1px;
+   cursor: pointer;
+   font-weight: bold;
 }
 div#wrapper {
    width: 960px;
@@ -25,15 +43,6 @@ input.text {
    border-style:solid;
    border-width: 1px;
    font-size: 1.5em;
-}
-button {
-   padding: 9px 10px 6px 7px;
-   background-color: #f2f2f2;
-   border-color: #eeeeee #dedede #dedede #eeeeee;
-   border-style: solid;
-   border-width: 1px;
-   cursor: pointer;
-   font-weight: bold;
 }
 div.highlight {
    width: 75%;
@@ -53,19 +62,6 @@ div#header {
    height:60px;
    border-bottom:1px solid #cccccc;
    padding:10px;
-}
-h2 {
-   font-size:3em;
-   padding:10px;
-}
-a {
-   color: #4183c4;
-   text-decoration: none;
-   font-weight:bold;
-}
-a:hover {
-   text-decoration: underline;
-   cursor:pointer;
 }
 table.text {
    width:100%;
@@ -114,7 +110,7 @@ div#pendingcount {
 }
 div.message {
    width: 75%;
-   margin: 0 auto;
+   margin: 1em auto;
    background-color: #fffeeb;
    border-color:#fee579;
    border-style:solid;
@@ -131,4 +127,86 @@ button.small {
 }
 span.small {
    font-size:.8em;
+}
+#reviewwrapper { 
+   width:100%;
+   height:100%;
+   border:none; 
+   border-collapse:collapse;
+}
+#reviewwrapper td {
+   width: 100%
+}
+#compareframetable {
+   width: 100%;
+   border:none;
+   height:100%
+}
+#top {
+   width: 100%;
+   background:#ffffff;
+}
+#bottom {
+   width:100%;
+   height:80px;
+   border-top:1px solid #cccccc;
+   background: #e0ecfa;
+}
+#bottom td {
+   padding:10px;
+   width:50%;
+}
+#bottomleft {
+   vertical-align: bottom;
+}
+#bottomright {
+   text-align: right;
+}
+#comment {
+   background:transparent;
+   border:none;
+}
+#submit {
+   height: 30%;
+   margin-left: 20px;
+   margin-top:20px;
+   vertical-align: top;
+}
+#lastcomment {
+   font-size:.8em;
+   padding-top: 5px;
+}
+#reject {
+   background: #ffaaaa;
+   text-shadow: 1px 1px 0 #ffdddd;
+   margin-right: 20px;
+}
+#accept {
+   background: #aaffaa;
+   text-shadow: 1px 1px 0 #ddffdd;
+   margin-left:50px;
+}
+button {
+   border:1px solid #cccccc;
+   padding:2px; 
+   -moz-border-radius: 2px 2px 2px 2px;
+   border-radius: 2px;
+   padding:8px;
+   font-size:.8em;
+   margin:4px;
+   cursor: pointer
+}
+#pagetitle {
+   font-size:3em;
+   padding:10px;
+   float:left;
+}
+#usercontrols {
+   float:right;
+}
+#usercontrols a {
+    text-shadow: 1px 1px 0 #FFFFFF;
+}
+#username {
+   font-weight: bold;
 }

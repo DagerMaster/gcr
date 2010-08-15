@@ -4,14 +4,13 @@ require 'sinatra'
 require 'dm-core'
 require 'dm-migrations'
 require 'dm-validations'
-require 'patron'
 require 'json'
 require 'erb'
-require 'gh-api'
+require 'github'
 
 ### DB ###
 
-DataMapper.setup(:default, ENV['DATABASE_URL'] || "sqlite3://#{Dir.pwd}/my.db")
+DataMapper.setup(:default, ENV['DATABASE_URL'] || "sqlite3://#{Dir.pwd}/gcr.db")
 
 class User
   include DataMapper::Resource
@@ -19,9 +18,10 @@ class User
   property :username, String, :key => true, :unique => true
   property :token, String
   property :email, String
+  property :is_reviewer, Boolean
 
-  has n, :collaborators
-  has n, :repos, :through => :collaborators
+  has n, :collaborations
+  has n, :repos, :through => :collaborations
 
   has n, :reviews
 
@@ -31,13 +31,14 @@ class Repo
   include DataMapper::Resource
 
   # URL only stores username/repo_name, not http://github.com/
-  property :url, String, :key => true, :unique => true
+  property :url, String, :key => true, :unique => true, :length => 1..255
 
-  has n, :collaborators
-  has n, :users, :through => :collaborators
+  has n, :collaborations
+  has n, :users, :through => :collaborations
+
 end
 
-class Collaborator
+class Collaboration
   include DataMapper::Resource
 
   belongs_to :repo, :key => true
@@ -51,22 +52,24 @@ class Push
   include DataMapper::Resource
 
   property :id, Serial
-  property :before, String
-  property :after, String
+  property :before, String, :unique => true
+  property :after, String, :unique => true
 
   belongs_to :repo
+  belongs_to :user
 end
 
 class Review
   include DataMapper::Resource
 
-  belongs_to :push, :key => true
-  belongs_to :user, :key => true
+  property :id, Serial
+  property :url, String, :length => 1..255
+  property :completed, Boolean, :default => false
+  property :approved, Boolean, :default => false
+  property :date, DateTime, :default => DateTime.now
 
-  property :url, String
-  property :completed, Boolean
-  property :approved, Boolean
-  property :date, DateTime
+  belongs_to :push
+  belongs_to :user
 
   has n, :comments
 
@@ -99,7 +102,7 @@ get '/' do
   else
     @msg = "please enter your github credentials below"
   end
-  erb :index
+  erb :login
 end
 
 post '/login/?' do
@@ -111,8 +114,8 @@ post '/login/?' do
       session[:token] = user[:token]
       redirect "/reviews/"
     else
-      # User may have been added as a collaborator first
-      hub = Hubber.new(params[:username], params[:token])
+      # User may have been added as a collaborator first, check if we need to add
+      hub = GitHub.new(params[:username], params[:token])
       if hub.authenticate
         user[:token] = params[:token]
         user.save
@@ -123,7 +126,7 @@ post '/login/?' do
       end
     end
   else
-    hub = Hubber.new(params[:username], params[:token])
+    hub = GitHub.new(params[:username], params[:token])
     if hub.authenticate
       user = User.new(:username => params[:username],
                       :token => params[:token])
@@ -150,22 +153,27 @@ get '/logout/?' do
 end
 
 post '/post/?' do
-  payload = JSON params[:payload]
+  payload = JSON.parse(params[:payload])
   repo = Repo.get(payload["repository"]["url"].split(/https?:\/\/github\.com\//)[1])
-  push = Push.new(:repo => repo,
-                  :before => payload["before"],
-                  :after => payload["after"])
-  push.save
-  if repo && push
-    # TODO: don't add pusher as reviewer
-    reviewers = Collaborator.all(:repo => repo).sort_by{ rand }.slice(0...5)
-    reviewers.each do |r|
-      rev = Review.new(:push => push,
-                       :user => r,
-                       :url => payload["compare"])
-      rev.save
+  pusher = User.get(payload["pusher"]["name"])
+  if not pusher
+    pusher = User.create(:username => payload["pusher"]["name"])
+  end
+  push = Push.create(:repo => repo,
+                     :before => payload["before"],
+                     :after => payload["after"],
+                     :user => pusher)
+  if repo && push.saved? && pusher.saved?
+    reviewers = Collaboration.all(:repo => repo,
+                                  :reviewer => true,
+                                  :user.not => pusher)
+    reviewers.sort_by{ rand }.slice(0...2).each do |r|
+      rev = Review.create(:push => push,
+                          :user => r.user,
+                          :url => payload["compare"])
     end
   end
+  nil
 end
 
 get '/reviews/?' do
@@ -173,7 +181,7 @@ get '/reviews/?' do
     redirect "/"
   end
   @user = User.get(session[:username])
-  hub = Hubber.new(session[:username], session[:token])
+  hub = GitHub.new(session[:username], session[:token])
   @repos_on = []
   @repos_off = []
   hub.repo_list.each do |url|
@@ -194,7 +202,7 @@ get '/reviews/?' do
       @revs_pending.push(rev)
     end
   end
-  erb :reviews, :layout => false
+  erb :dashboard
 end
 
 post '/add-email/?' do
@@ -203,47 +211,82 @@ post '/add-email/?' do
     user.email = params[:email]
     user.save
   end
+  nil
+end
+
+post '/reviewer-status/' do
+  user = User.get(session[:username])
+  if user
+    user.is_reviewer = params[:accepted]
+    user.save
+  end
+  nil
 end
 
 post '/start-review/?' do
-  repo = Repo.new(:url => params[:repo])
-  hub = Hubber.new(session[:username], session[:token])
-  collaborators = hub.repo_detail(params[:repo])
-  collaborators.each do |c|
-    user = User.get(c)
-    if not user
-      user = User.new(:username => c)
-      user.save
+  if params[:repo].split("/")[0] == session[:username]
+    repo = Repo.new(:url => params[:repo])
+    hub = GitHub.new(session[:username], session[:token])    
+    collaborators = hub.repo_collaborators(params[:repo])
+    collaborators.each do |c|
+      user = User.get(c)
+      if not user
+        user = User.create(:username => c)
+      end
+      cc = Collaboration.new(:repo => repo,
+                             :user => user)
+      # Don't add as reviewer if they've requested not to.
+      if user.username == repo.url.split("/")[0] && (!user.is_reviewer)
+        cc[:reviewer] = false
+      else
+        cc[:reviewer] = true
+      end
+      cc.save
     end
-    cc = Collaborator.new(:repo => repo,
-                          :user => user)
-    if c != "meteorsolutions"
-      # TODO: HACK
-      cc[:reviewer] = true
-    else
-      cc[:reviewer] = false
-    end
-    cc.save
   end
+  nil
 end
 
 get '/reviews/:review/?' do
-  erb :index
+  @rev = Review.get(params[:review])
+  if @rev.user.username == session[:username]
+    erb :review
+  else
+    redirect "/reviews/"
+  end
 end
-
-# Not sure if we want this one
-#get '/reviews/:review/review/?' do
-#  erb :index
-#end
 
 post '/reviews/:review/comment/?' do
-  erb :index
+  if session[:username]
+    rev = Review.get(params[:review])
+    if rev.user.username == session[:username]
+      comment = Comment.create(:body => params[:comment],
+                               :review => rev)
+    end
+  end
+  nil
 end
 
-post '/reviews/:review/accept/?' do
-  erb :index
+get '/reviews/:review/accept/?' do
+  rev = Review.get(params[:review])
+  if rev.user.username == session[:username]
+    if not rev.completed
+      rev.approved = true
+      rev.completed = true
+      rev.save
+    end
+  end
+  redirect "/reviews/"
 end
 
-post '/reviews/:review/reject/?' do
-  erb :index
+get '/reviews/:review/reject/?' do
+  rev = Review.get(params[:review])
+  if rev.user.username == session[:username]
+    if not rev.completed  
+      rev.approved = false
+      rev.completed = true
+      rev.save
+    end
+  end
+  redirect("/reviews/")
 end

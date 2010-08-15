@@ -1,0 +1,67 @@
+<html>
+  <head>
+    <link rel="stylesheet" type="text/css" href="/static/css/style.css">
+    <script type="text/javascript" src="/static/js/jquery-1.4.2.min.js"></script>
+    <script>
+      $(document).ready(function() {
+        var submitComment = function(c) {
+            c = c.replace(/^>> /, "");
+            if (c !== "") {
+                var count = parseInt($("#commentcount").html());
+                count += 1;
+                $("#commentcount").html(count);
+                if (count === 1) {
+                    $("#commentplural").html("");
+                } else {
+                    $("#commentplural").html("s");
+                }
+            }
+            $.post("/reviews/<%= @rev.id %>/comment/", {"comment" : c});
+        }
+        $("#comment").val(">> ");
+        $("#comment").focus();
+        $("#comment").keypress(function(e) {
+            if (e.which == 13) {
+                submitComment($(this).val());
+                $(this).val(">> ");
+                e.preventDefault();
+            }
+            var cols = $(this).attr("cols");
+            var text = $(this).val().split("\n");
+            var linecount = 0;
+            for (var idx in text) {
+                linecount += Math.ceil( text[idx].length / cols );
+            }
+            $(this).attr("rows", linecount);
+        });
+        $("button#accept").click(function() {
+            window.location.href = "/reviews/<%= @rev.id %>/accept/";
+        });
+        $("button#reject").click(function() {
+            window.location.href = "/reviews/<%= @rev.id %>/reject/";
+        });
+      });
+    </script>
+  </head>
+  <body>
+    <table id="reviewwrapper">
+      <tr>
+        <td id="top" colspan=2>
+          <iframe id="compareframetable" src="<%= @rev.url %>"></iframe>
+        </td>
+      </tr>
+      <tr id="bottom">
+        <td id="bottomleft">
+          <textarea id="comment" rows="1" cols="60">&gt;&gt;&nbsp;</textarea>
+        </td>
+        <td id="bottomright">
+          <span id="commentcount">0</span> comment<span id="commentplural">s</span> so far.
+          <button id="accept">accept commit</button>
+          <button id="reject">reject commit</button>
+
+        </td>
+      </tr>
+    </table>
+    </body>
+  </html>
+      

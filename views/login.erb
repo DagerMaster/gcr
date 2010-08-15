@@ -1,0 +1,23 @@
+<html>
+  <head>
+    <link rel="stylesheet" type="text/css" href="/static/css/style.css">
+    <title>
+      {gcr}
+    </title>
+  </head>
+  <body>
+    <div id="wrapper">
+      <div id="login">
+        <h1>{gcr}</h1>
+        <p class="instructions"><%= @msg %></p>
+        <div class="highlight">
+          <form method="post" action="/login/">
+            <input class="text" type="text" name="username">
+            <input class="text" type="password" name="token">
+            <button type="submit">Login</button>
+          </form>
+        </div>
+      </div>     
+    </div>
+  </body>
+</html>

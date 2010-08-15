@@ -1,0 +1,3 @@
+gcr is a simple code review app for organizations that use GitHub. It's not suitable for public deployment, since GitHub doesn't have read-only API access. I built it as a weekend project to hack on the GitHub API and Sinatra.
+
+If you want to play with it, deploy on a Heroku "Blossom" instance or local dev server and fire away.
